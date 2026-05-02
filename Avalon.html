@@ -1,0 +1,607 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>Avalon 计时器</title>
+  <style>
+    :root {
+      --bg: linear-gradient(160deg, #f5efe4 0%, #d8e6dd 45%, #9eb8c7 100%);
+      --panel: rgba(255, 251, 245, 0.86);
+      --panel-strong: rgba(255, 251, 245, 0.94);
+      --text: #19323c;
+      --muted: #5b727c;
+      --accent: #a23e48;
+      --accent-strong: #7f2730;
+      --ok: #2d6a4f;
+      --warn: #c16630;
+      --shadow: 0 18px 50px rgba(25, 50, 60, 0.16);
+      --radius: 24px;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: "Noto Sans SC", "PingFang SC", "Hiragino Sans GB", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+    }
+
+    .shell {
+      width: min(100%, 760px);
+      margin: 0 auto;
+      padding: 24px 16px 48px;
+    }
+
+    .hero,
+    .panel {
+      background: var(--panel);
+      backdrop-filter: blur(12px);
+      border: 1px solid rgba(255, 255, 255, 0.45);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+    }
+
+    .hero {
+      padding: 24px;
+      margin-bottom: 18px;
+    }
+
+    .eyebrow {
+      margin: 0 0 8px;
+      font-size: 13px;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      color: var(--accent);
+      font-weight: 700;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: clamp(28px, 7vw, 44px);
+      line-height: 1;
+    }
+
+    .subtitle {
+      margin: 14px 0 0;
+      color: var(--muted);
+      font-size: 15px;
+      line-height: 1.6;
+    }
+
+    .panel {
+      padding: 20px;
+      margin-bottom: 18px;
+    }
+
+    .grid {
+      display: grid;
+      gap: 14px;
+    }
+
+    .fields {
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    }
+
+    label {
+      display: block;
+      font-weight: 700;
+      margin-bottom: 8px;
+    }
+
+    input,
+    select,
+    button {
+      font: inherit;
+    }
+
+    input,
+    select {
+      width: 100%;
+      padding: 14px 16px;
+      border: 1px solid rgba(25, 50, 60, 0.14);
+      border-radius: 16px;
+      background: rgba(255, 255, 255, 0.8);
+      color: var(--text);
+    }
+
+    .actions {
+      display: grid;
+      gap: 12px;
+      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+      margin-top: 18px;
+    }
+
+    button {
+      border: 0;
+      border-radius: 18px;
+      padding: 15px 18px;
+      min-height: 56px;
+      font-weight: 800;
+      color: white;
+      background: var(--accent);
+      box-shadow: 0 10px 24px rgba(162, 62, 72, 0.3);
+    }
+
+    button.secondary {
+      background: #3b5b68;
+      box-shadow: 0 10px 24px rgba(59, 91, 104, 0.25);
+    }
+
+    button.ghost {
+      background: rgba(25, 50, 60, 0.08);
+      color: var(--text);
+      box-shadow: none;
+    }
+
+    button.warn {
+      background: var(--warn);
+      box-shadow: 0 10px 24px rgba(193, 102, 48, 0.25);
+    }
+
+    button:disabled {
+      opacity: 0.45;
+      box-shadow: none;
+    }
+
+    .status-strip {
+      display: grid;
+      gap: 12px;
+      grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+      margin-bottom: 16px;
+    }
+
+    .chip {
+      background: rgba(255, 255, 255, 0.66);
+      border-radius: 18px;
+      padding: 14px 16px;
+    }
+
+    .chip-label {
+      display: block;
+      font-size: 12px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 6px;
+    }
+
+    .chip-value {
+      font-size: 22px;
+      font-weight: 800;
+    }
+
+    .timer-card {
+      text-align: center;
+      padding: 28px 16px;
+      background: var(--panel-strong);
+      border-radius: 24px;
+      margin-bottom: 16px;
+    }
+
+    .stage {
+      margin: 0 0 8px;
+      color: var(--muted);
+      font-size: 14px;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      font-weight: 700;
+    }
+
+    .speaker {
+      margin: 0;
+      font-size: clamp(30px, 9vw, 54px);
+      line-height: 1.05;
+    }
+
+    .timer {
+      margin: 12px 0 0;
+      font-size: clamp(50px, 16vw, 92px);
+      font-weight: 900;
+      line-height: 1;
+      color: var(--ok);
+      font-variant-numeric: tabular-nums;
+    }
+
+    .timer.is-over {
+      color: var(--accent);
+    }
+
+    .hint {
+      margin: 14px 0 0;
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    .list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 14px;
+    }
+
+    .badge {
+      padding: 10px 12px;
+      border-radius: 999px;
+      background: rgba(25, 50, 60, 0.08);
+      color: var(--text);
+      font-weight: 700;
+    }
+
+    .badge.active {
+      background: rgba(162, 62, 72, 0.16);
+      color: var(--accent-strong);
+    }
+
+    .notice {
+      margin-top: 14px;
+      padding: 14px 16px;
+      border-radius: 16px;
+      background: rgba(45, 106, 79, 0.12);
+      color: var(--ok);
+      font-weight: 700;
+    }
+
+    .hidden {
+      display: none;
+    }
+
+    @media (max-width: 520px) {
+      .shell {
+        padding: 16px 12px 32px;
+      }
+
+      .hero,
+      .panel {
+        border-radius: 22px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="shell">
+    <section class="hero">
+      <p class="eyebrow">Avalon Helper</p>
+      <h1>阿瓦隆发言计时器</h1>
+      <p class="subtitle">把原来的命令行脚本改成了手机可用的触屏版。设置人数和时长后，按按钮推进发言、任务、下一轮车长。</p>
+    </section>
+
+    <section id="setupPanel" class="panel">
+      <div class="grid fields">
+        <div>
+          <label for="playerCount">本局人数</label>
+          <input id="playerCount" type="number" min="3" max="20" value="7" inputmode="numeric">
+        </div>
+        <div>
+          <label for="speechMinutes">每人发言时长（分钟）</label>
+          <input id="speechMinutes" type="number" min="0.1" step="0.1" value="2.5" inputmode="decimal">
+        </div>
+        <div>
+          <label for="startMode">起始车长</label>
+          <select id="startMode">
+            <option value="1">1号开始</option>
+            <option value="random">随机车长</option>
+          </select>
+        </div>
+      </div>
+      <div class="actions">
+        <button id="startGameBtn">开始本局</button>
+      </div>
+      <div id="setupError" class="notice hidden"></div>
+    </section>
+
+    <section id="gamePanel" class="panel hidden">
+      <div class="status-strip">
+        <div class="chip">
+          <span class="chip-label">当前车长</span>
+          <span id="leaderValue" class="chip-value">-</span>
+        </div>
+        <div class="chip">
+          <span class="chip-label">轮次</span>
+          <span id="roundValue" class="chip-value">1</span>
+        </div>
+        <div class="chip">
+          <span class="chip-label">剩余发言</span>
+          <span id="remainingValue" class="chip-value">-</span>
+        </div>
+      </div>
+
+      <div class="timer-card">
+        <p id="stageLabel" class="stage">等待开始</p>
+        <h2 id="speakerLabel" class="speaker">请开始</h2>
+        <div id="timerDisplay" class="timer">00:00</div>
+        <p id="timerHint" class="hint">绿色表示仍在时限内，红色表示已经超时。</p>
+      </div>
+
+      <div class="actions">
+        <button id="nextBtn">开始下一阶段</button>
+        <button id="pauseBtn" class="secondary">暂停计时</button>
+        <button id="resetBtn" class="ghost">重开本局</button>
+      </div>
+
+      <div id="roundNotice" class="notice hidden"></div>
+    </section>
+  </main>
+
+  <script>
+    const state = {
+      playerCount: 0,
+      speechSeconds: 60,
+      leader: 1,
+      round: 1,
+      players: [],
+      queue: [],
+      currentSpeaker: null,
+      phase: "idle",
+      elapsedMs: 0,
+      running: false,
+      lastTick: 0,
+      intervalId: null,
+      direction: null
+    };
+
+    const setupPanel = document.getElementById("setupPanel");
+    const gamePanel = document.getElementById("gamePanel");
+    const playerCountInput = document.getElementById("playerCount");
+    const speechMinutesInput = document.getElementById("speechMinutes");
+    const startModeInput = document.getElementById("startMode");
+    const setupError = document.getElementById("setupError");
+
+    const leaderValue = document.getElementById("leaderValue");
+    const roundValue = document.getElementById("roundValue");
+    const remainingValue = document.getElementById("remainingValue");
+    const stageLabel = document.getElementById("stageLabel");
+    const speakerLabel = document.getElementById("speakerLabel");
+    const timerDisplay = document.getElementById("timerDisplay");
+    const timerHint = document.getElementById("timerHint");
+    const roundNotice = document.getElementById("roundNotice");
+
+    const startGameBtn = document.getElementById("startGameBtn");
+    const nextBtn = document.getElementById("nextBtn");
+    const pauseBtn = document.getElementById("pauseBtn");
+    const resetBtn = document.getElementById("resetBtn");
+
+    function shuffle(list) {
+      const arr = [...list];
+      for (let i = arr.length - 1; i > 0; i -= 1) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [arr[i], arr[j]] = [arr[j], arr[i]];
+      }
+      return arr;
+    }
+
+    function formatTime(ms) {
+      const totalSeconds = Math.floor(ms / 1000);
+      const minutes = Math.floor(totalSeconds / 60);
+      const seconds = totalSeconds % 60;
+      return `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
+    }
+
+    function speechLimitMs() {
+      return state.speechSeconds * 1000;
+    }
+
+    function isTimerOver() {
+      if (state.phase === "leader-buffer") {
+        return state.elapsedMs >= 30000;
+      }
+      if (state.phase === "speech") {
+        return state.elapsedMs >= speechLimitMs();
+      }
+      return false;
+    }
+
+    function renderStatus() {
+      leaderValue.textContent = `${state.leader}号`;
+      roundValue.textContent = String(state.round);
+      remainingValue.textContent = state.phase === "task"
+        ? "任务中"
+        : state.phase === "idle"
+          ? "-"
+          : String(state.queue.length + (state.currentSpeaker === null ? 0 : 1));
+
+      timerDisplay.textContent = formatTime(state.elapsedMs);
+      timerDisplay.classList.toggle("is-over", isTimerOver());
+
+      if (state.phase === "leader-buffer") {
+        stageLabel.textContent = "车长准备";
+        speakerLabel.textContent = `${state.leader}号车长`;
+        timerHint.textContent = "对应原脚本里车长前的30秒缓冲。";
+        nextBtn.textContent = "进入发言";
+      } else if (state.phase === "speech") {
+        stageLabel.textContent = "发言阶段";
+        speakerLabel.textContent = `请 ${state.currentSpeaker} 号发言`;
+        timerHint.textContent = "按“开始下一阶段”切到下一位。";
+        nextBtn.textContent = state.queue.length ? "下一位发言" : "进入做任务";
+      } else if (state.phase === "task") {
+        stageLabel.textContent = "做任务";
+        speakerLabel.textContent = "做任务";
+        timerHint.textContent = "任务完成后，进入下一轮车长。";
+        nextBtn.textContent = "下一轮车长";
+      } else {
+        stageLabel.textContent = "等待开始";
+        speakerLabel.textContent = "请开始";
+        timerHint.textContent = "先设置本局参数。";
+        nextBtn.textContent = "开始下一阶段";
+      }
+
+      pauseBtn.textContent = state.running ? "暂停计时" : "继续计时";
+    }
+
+    function showRoundNotice(message, variant = "ok") {
+      roundNotice.textContent = message;
+      roundNotice.classList.remove("hidden");
+      roundNotice.style.background = variant === "warn"
+        ? "rgba(193, 102, 48, 0.12)"
+        : "rgba(45, 106, 79, 0.12)";
+      roundNotice.style.color = variant === "warn" ? "var(--warn)" : "var(--ok)";
+    }
+
+    function hideRoundNotice() {
+      roundNotice.classList.add("hidden");
+    }
+
+    function buildQueue() {
+      const others = shuffle(state.players.filter((player) => player !== state.leader));
+      state.queue = [...others, state.leader];
+    }
+
+    function beginLeaderBuffer() {
+      state.phase = "leader-buffer";
+      state.currentSpeaker = null;
+      state.elapsedMs = 0;
+      buildQueue();
+      startTimer();
+      renderStatus();
+    }
+
+    function beginNextSpeech() {
+      if (!state.queue.length) {
+        beginTaskPhase();
+        return;
+      }
+      state.phase = "speech";
+      state.currentSpeaker = state.queue.shift();
+      state.elapsedMs = 0;
+      startTimer();
+      renderStatus();
+    }
+
+    function beginTaskPhase() {
+      state.phase = "task";
+      state.currentSpeaker = null;
+      state.elapsedMs = 0;
+      stopTimer();
+      showRoundNotice("发言顺序已完成，现在进入任务阶段。");
+      renderStatus();
+    }
+
+    function advanceRound() {
+      state.round += 1;
+      state.leader += 1;
+      if (state.leader > state.playerCount) {
+        state.leader = 1;
+      }
+      hideRoundNotice();
+      beginLeaderBuffer();
+    }
+
+    function tick() {
+      if (!state.running) {
+        return;
+      }
+      const now = performance.now();
+      state.elapsedMs += now - state.lastTick;
+      state.lastTick = now;
+      renderStatus();
+    }
+
+    function startTimer() {
+      state.running = true;
+      state.lastTick = performance.now();
+      if (state.intervalId === null) {
+        state.intervalId = window.setInterval(tick, 100);
+      }
+    }
+
+    function stopTimer() {
+      state.running = false;
+    }
+
+    function resetGame() {
+      state.playerCount = 0;
+      state.speechSeconds = 60;
+      state.leader = 1;
+      state.round = 1;
+      state.players = [];
+      state.queue = [];
+      state.currentSpeaker = null;
+      state.phase = "idle";
+      state.elapsedMs = 0;
+      state.running = false;
+      state.direction = null;
+      hideRoundNotice();
+      setupError.classList.add("hidden");
+      setupPanel.classList.remove("hidden");
+      gamePanel.classList.add("hidden");
+      renderStatus();
+    }
+
+    function validateSetup() {
+      const playerCount = Number(playerCountInput.value);
+      const speechMinutes = Number(speechMinutesInput.value);
+
+      if (!Number.isInteger(playerCount) || playerCount < 3 || playerCount > 20) {
+        return "人数请填写 3 到 20 之间的整数。";
+      }
+      if (!Number.isFinite(speechMinutes) || speechMinutes <= 0) {
+        return "发言时长必须大于 0 分钟。";
+      }
+      return "";
+    }
+
+    startGameBtn.addEventListener("click", () => {
+      const error = validateSetup();
+      if (error) {
+        setupError.textContent = error;
+        setupError.classList.remove("hidden");
+        return;
+      }
+
+      setupError.classList.add("hidden");
+      state.playerCount = Number(playerCountInput.value);
+      state.speechSeconds = Number(speechMinutesInput.value) * 60;
+      state.players = Array.from({ length: state.playerCount }, (_, index) => index + 1);
+      state.round = 1;
+
+      if (startModeInput.value === "random") {
+        state.leader = state.players[Math.floor(Math.random() * state.players.length)];
+        state.direction = Math.random() > 0.5 ? "顺时针方向" : "逆时针方向";
+        showRoundNotice(`随机车长为 ${state.leader} 号，${state.direction}。`);
+      } else {
+        state.leader = 1;
+        state.direction = null;
+        hideRoundNotice();
+      }
+
+      setupPanel.classList.add("hidden");
+      gamePanel.classList.remove("hidden");
+      beginLeaderBuffer();
+    });
+
+    nextBtn.addEventListener("click", () => {
+      if (state.phase === "leader-buffer") {
+        beginNextSpeech();
+        return;
+      }
+      if (state.phase === "speech") {
+        beginNextSpeech();
+        return;
+      }
+      if (state.phase === "task") {
+        advanceRound();
+      }
+    });
+
+    pauseBtn.addEventListener("click", () => {
+      if (state.phase === "idle" || state.phase === "task") {
+        return;
+      }
+      if (state.running) {
+        stopTimer();
+      } else {
+        startTimer();
+      }
+      renderStatus();
+    });
+
+    resetBtn.addEventListener("click", resetGame);
+
+    renderStatus();
+  </script>
+</body>
+</html>
