@@ -175,6 +175,11 @@
       font-weight: 800;
     }
 
+    .chip-value.compact {
+      font-size: 16px;
+      line-height: 1.45;
+    }
+
     .timer-card {
       text-align: center;
       padding: 28px 16px;
@@ -284,7 +289,6 @@
           <label for="startMode">起始车长</label>
           <select id="startMode">
             <option value="1">1号开始</option>
-            <option value="random">随机车长</option>
           </select>
         </div>
       </div>
@@ -307,6 +311,10 @@
         <div class="chip">
           <span class="chip-label">剩余发言</span>
           <span id="remainingValue" class="chip-value">-</span>
+        </div>
+        <div class="chip">
+          <span class="chip-label">已发言</span>
+          <span id="spokenValue" class="chip-value compact">无</span>
         </div>
       </div>
 
@@ -335,6 +343,7 @@
       round: 1,
       players: [],
       queue: [],
+      spokenPlayers: [],
       currentSpeaker: null,
       phase: "idle",
       elapsedMs: 0,
@@ -354,6 +363,7 @@
     const leaderValue = document.getElementById("leaderValue");
     const roundValue = document.getElementById("roundValue");
     const remainingValue = document.getElementById("remainingValue");
+    const spokenValue = document.getElementById("spokenValue");
     const stageLabel = document.getElementById("stageLabel");
     const speakerLabel = document.getElementById("speakerLabel");
     const timerDisplay = document.getElementById("timerDisplay");
@@ -395,6 +405,24 @@
       return false;
     }
 
+    function updateStartOptions() {
+      const playerCount = Number(playerCountInput.value);
+      const validCount = Number.isInteger(playerCount) && playerCount >= 3 && playerCount <= 20
+        ? playerCount
+        : 1;
+      const previousValue = Number(startModeInput.value) || 1;
+      const selectedValue = Math.min(previousValue, validCount);
+
+      startModeInput.innerHTML = "";
+      for (let player = 1; player <= validCount; player += 1) {
+        const option = document.createElement("option");
+        option.value = String(player);
+        option.textContent = `${player}号开始`;
+        startModeInput.appendChild(option);
+      }
+      startModeInput.value = String(selectedValue);
+    }
+
     function renderStatus() {
       leaderValue.textContent = `${state.leader}号`;
       roundValue.textContent = String(state.round);
@@ -403,6 +431,9 @@
         : state.phase === "idle"
           ? "-"
           : String(state.queue.length + (state.currentSpeaker === null ? 0 : 1));
+      spokenValue.textContent = state.spokenPlayers.length
+        ? state.spokenPlayers.map((player) => `${player}号`).join("、")
+        : "无";
 
       timerDisplay.textContent = formatTime(state.elapsedMs);
       timerDisplay.classList.toggle("is-over", isTimerOver());
@@ -454,12 +485,22 @@
       state.phase = "leader-buffer";
       state.currentSpeaker = null;
       state.elapsedMs = 0;
+      state.spokenPlayers = [];
       buildQueue();
       startTimer();
       renderStatus();
     }
 
+    function finishCurrentSpeaker() {
+      if (state.currentSpeaker !== null && !state.spokenPlayers.includes(state.currentSpeaker)) {
+        state.spokenPlayers.push(state.currentSpeaker);
+      }
+    }
+
     function beginNextSpeech() {
+      if (state.phase === "speech") {
+        finishCurrentSpeaker();
+      }
       if (!state.queue.length) {
         beginTaskPhase();
         return;
@@ -519,6 +560,7 @@
       state.round = 1;
       state.players = [];
       state.queue = [];
+      state.spokenPlayers = [];
       state.currentSpeaker = null;
       state.phase = "idle";
       state.elapsedMs = 0;
@@ -556,17 +598,12 @@
       state.playerCount = Number(playerCountInput.value);
       state.speechSeconds = Number(speechMinutesInput.value) * 60;
       state.players = Array.from({ length: state.playerCount }, (_, index) => index + 1);
+      state.spokenPlayers = [];
       state.round = 1;
 
-      if (startModeInput.value === "random") {
-        state.leader = state.players[Math.floor(Math.random() * state.players.length)];
-        state.direction = Math.random() > 0.5 ? "顺时针方向" : "逆时针方向";
-        showRoundNotice(`随机车长为 ${state.leader} 号，${state.direction}。`);
-      } else {
-        state.leader = 1;
-        state.direction = null;
-        hideRoundNotice();
-      }
+      state.leader = Number(startModeInput.value);
+      state.direction = null;
+      hideRoundNotice();
 
       setupPanel.classList.add("hidden");
       gamePanel.classList.remove("hidden");
@@ -600,7 +637,9 @@
     });
 
     resetBtn.addEventListener("click", resetGame);
+    playerCountInput.addEventListener("input", updateStartOptions);
 
+    updateStartOptions();
     renderStatus();
   </script>
 </body>
